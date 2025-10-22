@@ -3,6 +3,8 @@ mod debug;
 mod value;
 mod block;
 mod vm;
+mod token;
+mod scanner;
 
 use op::OpCode;
 use block::Block;
@@ -34,7 +36,7 @@ fn main() {
 
     let mut vm = VM::new(block);
     match vm.run() {
-        RunResult::Ok => println!("Program finished successfully."),
+        RunResult::Ok(value) => println!("Program finished successfully. {:?}", value),
         RunResult::Error(msg) => println!("Runtime error: {}", msg),
     }
 }

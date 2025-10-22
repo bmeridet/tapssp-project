@@ -2,7 +2,7 @@ use crate::{block::Block, value::Value, op::OpCode, debug::disassemble_instructi
 
 #[derive(Debug)]
 pub enum RunResult {
-    Ok,
+    Ok(Value),
     Error(String),
 }
 
@@ -101,9 +101,104 @@ impl VM {
                 OpCode::Return => {
                     let value = self.pop();
                     println!("===> {:?}", value);
-                    return RunResult::Ok
+                    return RunResult::Ok(value);
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load_block() -> Block {
+        let mut block = Block::new();
+
+        let idx1 = block.add_constant(Value::Number(3.0));
+        let idx2 = block.add_constant(Value::Number(4.0));
+
+        block.write(OpCode::Constant as u8, 1);
+        block.write(idx1 as u8, 1);
+
+        block.write(OpCode::Constant as u8, 1);
+        block.write(idx2 as u8, 1);
+
+        block
+    }
+
+    #[test]
+    fn test_vm_arithmetic() {
+        let mut block = load_block();
+
+        block.write(OpCode::Add as u8, 1);
+        block.write(OpCode::Return as u8, 1);
+
+        let mut vm = VM::new(block);
+
+        match vm.run() {
+            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
+            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(7.0)),
+        }
+    }
+
+    #[test]
+    fn test_vm_negate() {
+        let mut block = load_block();
+
+        block.write(OpCode::Negate as u8, 1);
+        block.write(OpCode::Return as u8, 1);
+
+        let mut vm = VM::new(block);
+
+        match vm.run() {
+            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
+            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(-4.0)),
+        }
+    }
+
+    #[test]
+    fn test_vm_subtract() {
+        let mut block = load_block();
+
+        block.write(OpCode::Subtract as u8, 1);
+        block.write(OpCode::Return as u8, 1);
+
+        let mut vm = VM::new(block);
+
+        match vm.run() {
+            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
+            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(-1.0)),
+        }
+    }
+
+    #[test]
+    fn test_vm_multiply() {
+        let mut block = load_block();
+
+        block.write(OpCode::Multiply as u8, 1);
+        block.write(OpCode::Return as u8, 1);
+
+        let mut vm = VM::new(block);
+
+        match vm.run() {
+            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
+            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(12.0)),
+        }
+    }
+
+    #[test]
+    fn test_vm_divide() {
+        let mut block = load_block();
+
+        block.write(OpCode::Divide as u8, 1);
+        block.write(OpCode::Return as u8, 1);
+
+        let mut vm = VM::new(block);
+
+        match vm.run() {
+            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
+            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(0.75)),
         }
     }
 }
