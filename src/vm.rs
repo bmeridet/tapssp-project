@@ -1,10 +1,6 @@
-use crate::{block::Block, value::Value, op::OpCode, debug::disassemble_instruction};
-
-#[derive(Debug)]
-pub enum RunResult {
-    Ok(Value),
-    Error(String),
-}
+use crate::{
+    block::Block, compiler::compile, debug::disassemble_instruction, error::LoxError, op::OpCode, value::Value,
+};
 
 pub struct VM {
     pub block: Block,
@@ -13,7 +9,7 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(block: Block) -> VM {
+    fn new(block: Block) -> VM {
         VM {
             block,
             ip: 0,
@@ -48,10 +44,17 @@ impl VM {
         byte
     }
 
-    pub fn run(&mut self) -> RunResult {
+    pub fn interpret(source: &str) -> Result<Value, LoxError> {
+        let block = compile(source)?;
+
+        let mut vm = VM::new(block);
+        vm.run()
+    }
+
+    fn run(&mut self) -> Result<Value, LoxError> {
         loop {
             if self.ip >= self.block.code.len() {
-                return RunResult::Error("Reached end of code".to_string());
+                return Err(LoxError::RuntimeError);
             }
 
             let op = OpCode::from(self.read_byte());
@@ -74,34 +77,34 @@ impl VM {
                 },
                 OpCode::Add => {
                     if let Err(msg) = self.binary_op(|a, b| a + b) {
-                        return RunResult::Error(format!("Add:{}", msg));
+                        return Err(LoxError::RuntimeError);
                     }
                 },
                 OpCode::Subtract => {
                     if let Err(msg) = self.binary_op(|a, b| a - b) {
-                        return RunResult::Error(format!("Subtract:{}", msg));
+                        return Err(LoxError::RuntimeError);
                     }
                 },
                 OpCode::Multiply => {
                     if let Err(msg) = self.binary_op(|a, b| a * b) {
-                        return RunResult::Error(format!("Multiply:{}", msg));
+                        return Err(LoxError::RuntimeError);
                     }
                 },
                 OpCode::Divide => {
                     if let Err(msg) = self.binary_op(|a, b| a / b) {
-                        return RunResult::Error(format!("Divide:{}", msg));
+                        return Err(LoxError::RuntimeError);
                     }
                 },
                 OpCode::Negate => {
                     match self.pop().as_number() {
                         Some(num) => self.push(Value::Number(-num)),
-                        None => return RunResult::Error("Negate:Operand must be a number".to_string()),
+                        None => return Err(LoxError::RuntimeError),
                     }
                 },
                 OpCode::Return => {
                     let value = self.pop();
                     println!("===> {:?}", value);
-                    return RunResult::Ok(value);
+                    return Ok(value);
                 }
             }
         }
@@ -137,8 +140,9 @@ mod tests {
         let mut vm = VM::new(block);
 
         match vm.run() {
-            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
-            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(7.0)),
+            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
+            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
+            Ok(value) => assert_eq!(value.as_number(), Some(7.0)),
         }
     }
 
@@ -152,8 +156,9 @@ mod tests {
         let mut vm = VM::new(block);
 
         match vm.run() {
-            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
-            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(-4.0)),
+            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
+            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
+            Ok(value) => assert_eq!(value.as_number(), Some(-4.0)),
         }
     }
 
@@ -167,8 +172,9 @@ mod tests {
         let mut vm = VM::new(block);
 
         match vm.run() {
-            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
-            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(-1.0)),
+            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
+            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
+            Ok(value) => assert_eq!(value.as_number(), Some(-1.0)),
         }
     }
 
@@ -182,8 +188,9 @@ mod tests {
         let mut vm = VM::new(block);
 
         match vm.run() {
-            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
-            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(12.0)),
+            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
+            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
+            Ok(value) => assert_eq!(value.as_number(), Some(12.0)),
         }
     }
 
@@ -197,8 +204,9 @@ mod tests {
         let mut vm = VM::new(block);
 
         match vm.run() {
-            RunResult::Error(msg) => panic!("VM run failed: {}", msg),
-            RunResult::Ok(value) => assert_eq!(value.as_number(), Some(0.75)),
+            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
+            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
+            Ok(value) => assert_eq!(value.as_number(), Some(0.75)),
         }
     }
 }

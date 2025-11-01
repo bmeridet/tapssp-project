@@ -1,5 +1,5 @@
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen, RightParen, LeftBrace, RightBrace,
@@ -18,27 +18,24 @@ pub enum TokenType {
     And, Class, Else, False, Fun, For, If, Nil, Or,
     Print, Return, Super, This, True, Var, While,
 
+    Error,
+
     Eof,
 }
 
-pub struct Token {
+#[derive(Debug, Clone, Copy)]
+pub struct Token<'a> {
     pub token_type: TokenType,
-    start: usize,
-    end: usize,
+    pub lexeme: &'a str,
     pub line: usize,
 }
 
-impl Token {
-    pub fn new(token_type: TokenType, start: usize, end: usize, line: usize) -> Self {
-        Self {
-            token_type,
-            start,
-            end,
-            line,
+impl<'a> Token<'a> {
+    pub fn default() -> Self {
+        Token {
+            token_type: TokenType::Eof,
+            lexeme: "",
+            line: 0,
         }
-    }
-
-    pub fn lexeme<'a>(&self, source: &'a str) -> &'a str {
-        &source[self.start..self.end]
     }
 }

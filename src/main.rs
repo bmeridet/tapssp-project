@@ -5,38 +5,16 @@ mod block;
 mod vm;
 mod token;
 mod scanner;
+mod compiler;
+mod error;
 
-use op::OpCode;
-use block::Block;
-use value::Value;
-use vm::{VM, RunResult};
+use vm::{VM};
 
 fn main() {
-    let mut block = Block::new();
+    let src = "1 + 2";
 
-    let idx1 = block.add_constant(Value::Number(1.2));
-    let idx2 = block.add_constant(Value::Number(3.4));
-    let idx3 = block.add_constant(Value::Number(5.6));
-
-    block.write(OpCode::Constant as u8, 1);
-    block.write(idx1 as u8, 1);
-
-    block.write(OpCode::Constant as u8, 1);
-    block.write(idx2 as u8, 1);
-
-    block.write(OpCode::Add as u8, 1);
-
-    block.write(OpCode::Constant as u8, 1);
-    block.write(idx3 as u8, 1);
-
-    block.write(OpCode::Divide as u8, 1);
-    block.write(OpCode::Negate as u8, 1);
-
-    block.write(OpCode::Return as u8, 1);
-
-    let mut vm = VM::new(block);
-    match vm.run() {
-        RunResult::Ok(value) => println!("Program finished successfully. {:?}", value),
-        RunResult::Error(msg) => println!("Runtime error: {}", msg),
+    match VM::interpret(src) {
+        Err(e) => println!("{:?}", e),
+        Ok(value) => println!("{:?}", value),
     }
 }

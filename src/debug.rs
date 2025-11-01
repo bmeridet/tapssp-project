@@ -1,10 +1,10 @@
 use crate::{block::Block, op::OpCode};
 
-pub fn disassemble_chunk(chunk: &Block, name: &str) {
+pub fn disassemble_block(block: &Block, name: &str) {
     println!("== {} ==", name);
     let mut offset = 0usize;
-    while offset < chunk.code.len() {
-        offset = disassemble_instruction(chunk, offset);
+    while offset < block.code.len() {
+        offset = disassemble_instruction(block, offset);
     }
 }
 
