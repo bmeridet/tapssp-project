@@ -1,6 +1,6 @@
 
 use crate::{
-    block::{Block}, scanner::{ScanError, Scanner}, token::{Token, TokenType}, value::Value, error::LoxError, op::OpCode, debug::disassemble_block
+    block::{Block}, scanner::{ScanError, Scanner}, token::{Token, TokenType}, value::Value, error::LoxError, op::OpCode, debug::disassemble_block, objects::LoxString
 };
 
 pub fn compile(source: &str) -> Result<Block, LoxError> {
@@ -41,7 +41,7 @@ impl Precedence {
     }
 }
 
-type ParseFn<'a> = fn(&mut Parser<'a>, &mut Block) -> ();
+type ParseFn<'a> = fn(&mut Parser<'a>, &mut Block, bool) -> ();
 
 struct ParseRule<'a> {
     prefix: Option<ParseFn<'a>>,
@@ -77,46 +77,46 @@ impl<'a> Parser<'a> {
             panic_mode: false
         };
 
-        parser.add_rule(Some(Parser::grouping), None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(Some(Parser::unary), Some(Parser::binary), Precedence::Term);
-        parser.add_rule(None, Some(Parser::binary), Precedence::Term);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, Some(Parser::binary), Precedence::Factor);
-        parser.add_rule(None, Some(Parser::binary), Precedence::Factor);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(Some(Parser::number), None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
-        parser.add_rule(None, None, Precedence::None);
+        parser.add_rule(Some(Parser::grouping), None, Precedence::None); // LeftParen
+        parser.add_rule(None, None, Precedence::None); // RightParen
+        parser.add_rule(None, None, Precedence::None); // LeftBrace
+        parser.add_rule(None, None, Precedence::None); // RightBrace
+        parser.add_rule(None, None, Precedence::None); // Comma
+        parser.add_rule(None, None, Precedence::None); // Dot
+        parser.add_rule(Some(Parser::unary), Some(Parser::binary), Precedence::Term); // Minus
+        parser.add_rule(None, Some(Parser::binary), Precedence::Term); // Plus
+        parser.add_rule(None, None, Precedence::None); // Semicolon
+        parser.add_rule(None, Some(Parser::binary), Precedence::Factor);  // Slash
+        parser.add_rule(None, Some(Parser::binary), Precedence::Factor);  // Star
+        parser.add_rule(Some(Parser::unary), None, Precedence::None);  // Bang
+        parser.add_rule(None, Some(Parser::binary), Precedence::Equality);  // BangEqual
+        parser.add_rule(None, None, Precedence::None);  // Equal
+        parser.add_rule(None, Some(Parser::binary), Precedence::Equality);  // EqualEqual
+        parser.add_rule(None, Some(Parser::binary), Precedence::Comparison);  // Greater
+        parser.add_rule(None, Some(Parser::binary), Precedence::Comparison);  // GreaterEqual
+        parser.add_rule(None, Some(Parser::binary), Precedence::Comparison);  // Less
+        parser.add_rule(None, Some(Parser::binary), Precedence::Comparison);  // LessEqual
+        parser.add_rule(Some(Parser::variable), None, Precedence::None);  // Identifier
+        parser.add_rule(Some(Parser::string), None, Precedence::None);  // String
+        parser.add_rule(Some(Parser::number), None, Precedence::None);  // Number
+        parser.add_rule(None, None, Precedence::None);  // And
+        parser.add_rule(None, None, Precedence::None);  // Class
+        parser.add_rule(None, None, Precedence::None);  // Else
+        parser.add_rule(Some(Parser::literal), None, Precedence::None);  // False
+        parser.add_rule(None, None, Precedence::None);  // Fun
+        parser.add_rule(None, None, Precedence::None);  // For
+        parser.add_rule(None, None, Precedence::None);  // If
+        parser.add_rule(Some(Parser::literal), None, Precedence::None);  // Nil
+        parser.add_rule(None, None, Precedence::None);  // Or
+        parser.add_rule(None, None, Precedence::None);  // Print
+        parser.add_rule(None, None, Precedence::None);  // Return
+        parser.add_rule(None, None, Precedence::None);  // Super
+        parser.add_rule(None, None, Precedence::None);  // This
+        parser.add_rule(Some(Parser::literal), None, Precedence::None);  // True
+        parser.add_rule(None, None, Precedence::None);  // Var
+        parser.add_rule(None, None, Precedence::None);  // While
+        parser.add_rule(None, None, Precedence::None);  // Error
+        parser.add_rule(None, None, Precedence::None);  // Eof
 
         parser
     }
@@ -125,7 +125,11 @@ impl<'a> Parser<'a> {
         let mut block = Block::new();
 
         self.advance();
-        self.expression(&mut block);
+
+        while !self.matches(TokenType::Eof) {
+            self.declaration(&mut block);
+        }
+
         self.emit_return(&mut block);
 
         #[cfg(debug_assertions)]
@@ -134,43 +138,123 @@ impl<'a> Parser<'a> {
         }
 
         if self.had_error {
-            Err(LoxError::CompileError)
+            Err(LoxError::CompileError("Compile error".to_string()))
         } else {
             Ok(block)
         }
     }
 
-    pub fn expression(&mut self, block: &mut Block) {
+    fn declaration(&mut self, block: &mut Block) {
+        if self.matches(TokenType::Var) {
+            self.var_declaration(block);
+        } else {
+            self.statement(block);
+        }
+
+        if self.panic_mode {
+            self.sync();
+        }
+    }
+
+    fn var_declaration(&mut self, block: &mut Block) {
+        let global = self.parse_variable("Expected variable name.", block);
+
+        if self.matches(TokenType::Equal) {
+            self.expression(block);
+        } else {
+            self.emit_byte(OpCode::Nil as u8, block);
+        }
+
+        self.match_token(TokenType::Semicolon, "Expected semicolon after variable declaration.");
+        self.define_variable(block, global);
+    }
+
+    fn parse_variable(&mut self, message: &str, block: &mut Block) -> u8 {
+        self.match_token(TokenType::Identifier, message);
+        self.identifier_constant(self.previous, block)
+    }
+
+    fn identifier_constant(&mut self, name: Token, block: &mut Block) -> u8 {
+        self.make_constant(Value::String(LoxString::from_string(name.lexeme)), block)
+    }
+
+    fn variable(&mut self, block: &mut Block, is_assign: bool) {
+        self.named_variable(self.previous, block, is_assign);
+    }
+
+    fn named_variable(&mut self, name: Token, block: &mut Block, is_assign: bool) {
+        let index = self.identifier_constant(name, block);
+
+        if is_assign &&self.matches(TokenType::Equal) {
+            self.expression(block);
+            self.emit_bytes(OpCode::SetGlobal as u8, index, block);
+        } else {
+            self.emit_bytes(OpCode::GetGlobal as u8, index, block);
+        }
+    }
+
+    fn define_variable(&mut self, block: &mut Block, global: u8) {
+        self.emit_bytes(OpCode::DefGlobal as u8, global, block);
+    }
+
+    fn statement(&mut self, block: &mut Block) {
+        if self.matches(TokenType::Print) {
+            self.print_statement(block);
+        } else {
+            self.expression_statement(block);
+        }
+    }
+
+    fn print_statement(&mut self, block: &mut Block) {
+        self.expression(block);
+        self.match_token(TokenType::Semicolon, "Expected semicolon after value.");
+        self.emit_byte(OpCode::Print as u8, block);
+    }
+
+    fn expression_statement(&mut self, block: &mut Block) {
+        self.expression(block);
+        self.match_token(TokenType::Semicolon, "Expected semicolon after expression.");
+        self.emit_byte(OpCode::Pop as u8, block);
+    }
+
+    fn expression(&mut self, block: &mut Block) {
         self.parse_precedence(Precedence::Assignment, block);
     }
 
-    fn number(&mut self, block: &mut Block) {
+    fn number(&mut self, block: &mut Block, is_assign: bool) {
         let value: f64 = self.previous.lexeme.parse().unwrap();
         self.emit_constant(Value::Number(value), block);
     }
 
-    fn grouping(&mut self, block: &mut Block) {
+    fn grouping(&mut self, block: &mut Block, is_assign: bool) {
         self.expression(block);
         self.match_token(TokenType::RightParen, "Expect ')' after expression.");
     }
 
-    fn unary(&mut self, block: &mut Block) {
+    fn unary(&mut self, block: &mut Block, is_assign: bool) {
         let operator = self.previous.token_type;
 
         self.parse_precedence(Precedence::Unary, block);
 
         match operator {
+            TokenType::Bang => self.emit_byte(OpCode::Not as u8, block),
             TokenType::Minus => self.emit_byte(OpCode::Negate as u8, block),
             _ => unreachable!()
         }
     }
 
-    fn binary(&mut self, block: &mut Block) {
+    fn binary(&mut self, block: &mut Block, is_assign: bool) {
         let operator = self.previous.token_type;
         let parse_rule = self.get_rule(operator);
         self.parse_precedence(parse_rule.precedence.next(), block);
 
         match operator {
+            TokenType::BangEqual => self.emit_bytes(OpCode::Equal as u8, OpCode::Not as u8, block),
+            TokenType::EqualEqual => self.emit_byte(OpCode::Equal as u8, block),
+            TokenType::Greater => self.emit_byte(OpCode::Greater as u8, block),
+            TokenType::GreaterEqual => self.emit_bytes(OpCode::Less as u8, OpCode::Not as u8, block),
+            TokenType::Less => self.emit_byte(OpCode::Less as u8, block),
+            TokenType::LessEqual => self.emit_bytes(OpCode::Greater as u8, OpCode::Not as u8, block),
             TokenType::Plus => self.emit_byte(OpCode::Add as u8, block),
             TokenType::Minus => self.emit_byte(OpCode::Subtract as u8, block),
             TokenType::Star => self.emit_byte(OpCode::Multiply as u8, block),
@@ -179,22 +263,43 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn literal(&mut self, block: &mut Block, is_assign: bool) {
+        match self.previous.token_type {
+            TokenType::True => self.emit_byte(OpCode::True as u8, block),
+            TokenType::False => self.emit_byte(OpCode::False as u8, block),
+            TokenType::Nil => self.emit_byte(OpCode::Nil as u8, block),
+            _ => unreachable!()
+        }
+    }
+
+    fn string(&mut self, block: &mut Block, is_assign: bool) {
+        let value = LoxString::from_string(&self.previous.lexeme[1..self.previous.lexeme.len() - 1]);
+        self.emit_constant(Value::String(value), block);
+    }
+
     fn parse_precedence(&mut self, precedence: Precedence, block: &mut Block) {
         self.advance();
         let prefix_rule = self.get_rule(self.previous.token_type).prefix;
 
-        match prefix_rule {
-            Some(prefix) => prefix(self, block),
+        let prefix = match prefix_rule {
+            Some(rule) => rule,
             None => {
                 self.error_previous("Expected expression.");
                 return;
             }
-        }
+        };
+
+        let is_assign = precedence <= Precedence::Assignment;
+        prefix(self, block, is_assign);
 
         while precedence <= self.get_rule(self.current.token_type).precedence {
             self.advance();
             let infix_rule = self.get_rule(self.previous.token_type).infix.unwrap();
-            infix_rule(self, block);
+            infix_rule(self, block, is_assign);
+        }
+
+        if is_assign && self.matches(TokenType::Equal) {
+            self.error_previous("Invalid assignment target.");
         }
     }
 
@@ -251,6 +356,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn check(&self, token_type: TokenType) -> bool {
+        self.current.token_type == token_type
+    }
+
+    fn matches(&mut self, token_type: TokenType) -> bool {
+        if self.check(token_type) {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
     fn add_rule(&mut self, prefix: Option<ParseFn<'a>>, infix: Option<ParseFn<'a>>, precedence: Precedence) {
         self.rules.push(ParseRule::new(prefix, infix, precedence));
     }
@@ -281,6 +399,30 @@ impl<'a> Parser<'a> {
 
         self.had_error = true;
         self.panic_mode = true;
+    }
+
+    fn sync(&mut self) {
+        self.panic_mode = false;
+
+        while self.current.token_type != TokenType::Eof {
+            if self.previous.token_type == TokenType::Semicolon {
+                return;
+            }
+
+            match self.current.token_type {
+                TokenType::Class |
+                TokenType::Fun |
+                TokenType::Var |
+                TokenType::For |
+                TokenType::If |
+                TokenType::While |
+                TokenType::Print |
+                TokenType::Return => return,
+                _ => {}
+            }
+
+            self.advance();
+        }
     }
 }
 

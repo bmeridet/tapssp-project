@@ -1,6 +1,6 @@
 
 #[derive(Debug)]
 pub enum LoxError {
-    CompileError,
-    RuntimeError,
+    CompileError(String),
+    RuntimeError(String),
 }

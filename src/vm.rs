@@ -1,19 +1,25 @@
+use std::{clone, ptr::null};
+
 use crate::{
-    block::Block, compiler::compile, debug::disassemble_instruction, error::LoxError, op::OpCode, value::Value,
+    block::Block, compiler::compile, debug::disassemble_instruction, error::LoxError, op::OpCode, value::Value, objects::LoxString, table::Table
 };
 
 pub struct VM {
     pub block: Block,
     pub ip: usize,
     pub stack: Vec<Value>,
+    pub strings: Table,
+    pub globals: Table,
 }
 
 impl VM {
-    fn new(block: Block) -> VM {
+    pub fn new() -> VM {
         VM {
-            block,
+            block: Block::new(),
             ip: 0,
             stack: Vec::with_capacity(256),
+            strings: Table::new(),
+            globals: Table::new(),
         }
     }
 
@@ -25,13 +31,17 @@ impl VM {
         self.stack.pop().expect("stack underflow")
     }
 
-    fn binary_op<F>(&mut self, op: F) -> Result<(), String> where F: FnOnce(f64, f64) -> f64 {
+    fn peek(&self, n: usize) -> Value {
+        self.stack.get(self.stack.len() - n - 1).expect("stack underflow").clone()
+    }
+
+    fn binary_op<T>(&mut self, op: fn(f64, f64) -> T, f: fn(T) -> Value) -> Result<(), String> {
         let b = self.pop();
         let a = self.pop();
         
         match (a.as_number(), b.as_number()) {
             (Some(aa), Some(bb)) => {
-                self.push(Value::Number(op(aa, bb)));
+                self.push(f(op(aa, bb)));
                 Ok(())
             }
             _ => Err("Operands must be numbers".to_string()),
@@ -44,17 +54,16 @@ impl VM {
         byte
     }
 
-    pub fn interpret(source: &str) -> Result<Value, LoxError> {
-        let block = compile(source)?;
-
-        let mut vm = VM::new(block);
-        vm.run()
+    pub fn interpret(&mut self, source: &str) -> Result<(), LoxError> {
+        self.ip = 0;
+        self.block = compile(source)?;
+        self.run()
     }
 
-    fn run(&mut self) -> Result<Value, LoxError> {
+    fn run(&mut self) -> Result<(), LoxError> {
         loop {
             if self.ip >= self.block.code.len() {
-                return Err(LoxError::RuntimeError);
+                return Err(LoxError::RuntimeError("Hit end of bytecode".to_string()));
             }
 
             let op = OpCode::from(self.read_byte());
@@ -75,138 +84,95 @@ impl VM {
                     let value = self.block.constants[index].clone();
                     self.push(value);
                 },
+                OpCode::Nil => self.push(Value::Nil),
+                OpCode::True => self.push(Value::Bool(true)),
+                OpCode::False => self.push(Value::Bool(false)),
+                OpCode::Pop => {
+                    self.pop();
+                },
+                OpCode::GetGlobal => {
+                    let index = self.read_byte();
+                    let s = self.block.read_string(index).clone();
+                    if let Some(v) = self.globals.get(&s) {
+                        self.push(v);
+                    } else {
+                        return Err(LoxError::RuntimeError(format!("Undefined variable '{}'", s.value)));
+                    }
+                },
+                OpCode::DefGlobal => {
+                    let index = self.read_byte();
+                    let s = self.block.read_string(index).clone();
+                    let value = self.pop();
+                    self.globals.set(s, value);
+                },
+                OpCode::SetGlobal => {
+                    let index = self.read_byte();
+                    let s = self.block.read_string(index);
+
+                    if self.globals.set(s.clone(), self.peek(0)) {
+                        self.globals.delete(s);
+                        return Err(LoxError::RuntimeError(format!("Undefined variable '{}'", s.value)));
+                    }
+                },
+                OpCode::Equal => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Bool(a == b));
+                },
+                OpCode::Greater => {
+                    if let Err(msg) = self.binary_op(|a, b| a > b, Value::Bool) {
+                        return Err(LoxError::RuntimeError(msg));
+                    }
+                },
+                OpCode::Less => {
+                    if let Err(msg) = self.binary_op(|a, b| a < b, Value::Bool) {
+                        return Err(LoxError::RuntimeError(msg));
+                    }
+                }
                 OpCode::Add => {
-                    if let Err(msg) = self.binary_op(|a, b| a + b) {
-                        return Err(LoxError::RuntimeError);
+                    let (b, a) = (self.pop(), self.pop());
+
+                    match (&a, &b) {
+                        (Value::Number(a), Value::Number(b)) => self.push(Value::Number(a + b)),
+                        (Value::String(a), Value::String(b)) => {
+                            let result = format!("{}{}", a.value, b.value);
+                            self.push(Value::String(LoxString::new(&result)))
+                        }
+                        _ => return Err(LoxError::RuntimeError("Operands must be two numbers or two strings".to_string())),
                     }
                 },
                 OpCode::Subtract => {
-                    if let Err(msg) = self.binary_op(|a, b| a - b) {
-                        return Err(LoxError::RuntimeError);
+                    if let Err(msg) = self.binary_op(|a, b| a - b, Value::Number) {
+                        return Err(LoxError::RuntimeError(msg));
                     }
                 },
                 OpCode::Multiply => {
-                    if let Err(msg) = self.binary_op(|a, b| a * b) {
-                        return Err(LoxError::RuntimeError);
+                    if let Err(msg) = self.binary_op(|a, b| a * b, Value::Number) {
+                        return Err(LoxError::RuntimeError(msg));
                     }
                 },
                 OpCode::Divide => {
-                    if let Err(msg) = self.binary_op(|a, b| a / b) {
-                        return Err(LoxError::RuntimeError);
+                    if let Err(msg) = self.binary_op(|a, b| a / b, Value::Number) {
+                        return Err(LoxError::RuntimeError(msg));
                     }
                 },
+                OpCode::Not => {
+                    let val = self.pop();
+                    self.push(Value::Bool(val.is_falsey()));
+                }
                 OpCode::Negate => {
                     match self.pop().as_number() {
                         Some(num) => self.push(Value::Number(-num)),
-                        None => return Err(LoxError::RuntimeError),
+                        None => return Err(LoxError::RuntimeError("Operand must be a number".to_string())),
                     }
                 },
+                OpCode::Print => {
+                    println!("{}", self.pop());
+                }
                 OpCode::Return => {
-                    let value = self.pop();
-                    println!("===> {:?}", value);
-                    return Ok(value);
+                    return Ok(());
                 }
             }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn load_block() -> Block {
-        let mut block = Block::new();
-
-        let idx1 = block.add_constant(Value::Number(3.0));
-        let idx2 = block.add_constant(Value::Number(4.0));
-
-        block.write(OpCode::Constant as u8, 1);
-        block.write(idx1 as u8, 1);
-
-        block.write(OpCode::Constant as u8, 1);
-        block.write(idx2 as u8, 1);
-
-        block
-    }
-
-    #[test]
-    fn test_vm_arithmetic() {
-        let mut block = load_block();
-
-        block.write(OpCode::Add as u8, 1);
-        block.write(OpCode::Return as u8, 1);
-
-        let mut vm = VM::new(block);
-
-        match vm.run() {
-            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
-            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
-            Ok(value) => assert_eq!(value.as_number(), Some(7.0)),
-        }
-    }
-
-    #[test]
-    fn test_vm_negate() {
-        let mut block = load_block();
-
-        block.write(OpCode::Negate as u8, 1);
-        block.write(OpCode::Return as u8, 1);
-
-        let mut vm = VM::new(block);
-
-        match vm.run() {
-            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
-            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
-            Ok(value) => assert_eq!(value.as_number(), Some(-4.0)),
-        }
-    }
-
-    #[test]
-    fn test_vm_subtract() {
-        let mut block = load_block();
-
-        block.write(OpCode::Subtract as u8, 1);
-        block.write(OpCode::Return as u8, 1);
-
-        let mut vm = VM::new(block);
-
-        match vm.run() {
-            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
-            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
-            Ok(value) => assert_eq!(value.as_number(), Some(-1.0)),
-        }
-    }
-
-    #[test]
-    fn test_vm_multiply() {
-        let mut block = load_block();
-
-        block.write(OpCode::Multiply as u8, 1);
-        block.write(OpCode::Return as u8, 1);
-
-        let mut vm = VM::new(block);
-
-        match vm.run() {
-            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
-            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
-            Ok(value) => assert_eq!(value.as_number(), Some(12.0)),
-        }
-    }
-
-    #[test]
-    fn test_vm_divide() {
-        let mut block = load_block();
-
-        block.write(OpCode::Divide as u8, 1);
-        block.write(OpCode::Return as u8, 1);
-
-        let mut vm = VM::new(block);
-
-        match vm.run() {
-            Err(LoxError::CompileError) => panic!("VM run failed: compile error"),
-            Err(LoxError::RuntimeError) => panic!("VM run failed: runtime error"),
-            Ok(value) => assert_eq!(value.as_number(), Some(0.75)),
         }
     }
 }

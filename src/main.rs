@@ -7,12 +7,16 @@ mod token;
 mod scanner;
 mod compiler;
 mod error;
+mod table;
+mod objects;
 
 use vm::{VM};
 use std::io::{stdin, stdout, Write};
 
 fn repl() {
     let mut line = String::new();
+
+    let mut vm = VM::new();
 
     loop {
         print!("> ");
@@ -29,7 +33,7 @@ fn repl() {
             break;
         }
 
-        match VM::interpret(input) {
+        match vm.interpret(input) {
             Err(e) => println!("{:?}", e),
             Ok(value) => println!("{:?}", value),
         }
