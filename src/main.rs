@@ -11,6 +11,7 @@ mod objects;
 
 use vm::{VM};
 use std::io::{stdin, stdout, Write};
+use std::fs;
 
 fn repl() {
     let mut line = String::new();
@@ -41,6 +42,22 @@ fn repl() {
     println!("Exiting.");
 }
 
+fn run_file(filename: &str) {
+    let source = fs::read_to_string(filename)
+        .expect("Could not read file");
+
+    let mut vm = VM::new();
+
+    match vm.interpret(&source) {
+        Err(e) => println!("{:?}", e),
+        Ok(value) => println!("{:?}", value),
+    }
+}
+
 fn main() {
-    repl();
+    if let Some(arg) = std::env::args().nth(1) {
+        run_file(&arg);
+    } else {
+        repl();
+    }
 }

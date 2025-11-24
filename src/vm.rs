@@ -144,7 +144,8 @@ impl VM {
                     self.push(val);
                 },
                 OpCode::SetLocal(index) => {
-                    self.stack[index as usize] = self.peek(0);
+                    let index = current_frame.slots + index as usize;
+                    self.stack[index] = self.peek(0);
                 },
                 OpCode::GetGlobal(index) => {
                     let s = current_block.read_string(index).clone();
