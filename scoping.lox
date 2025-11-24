@@ -1,0 +1,10 @@
+
+{
+    var a = "hello ";
+    var b = "world!";
+    var x = 5;
+    var y = 6;
+
+    print a + b;
+    print x + y;
+}
