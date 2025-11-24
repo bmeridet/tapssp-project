@@ -3,5 +3,9 @@ name = "tapssp-project"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+debug_trace = []
+
 [dependencies]
 thiserror = "2.0.17"
+cpu-time = "1.0.0"

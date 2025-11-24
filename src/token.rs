@@ -31,10 +31,10 @@ pub struct Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub fn default() -> Self {
+    pub fn default(s: &'a str) -> Self {
         Token {
             token_type: TokenType::Eof,
-            lexeme: "",
+            lexeme: s,
             line: 0,
         }
     }

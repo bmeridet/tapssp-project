@@ -1,7 +1,9 @@
-use crate::{objects::LoxString, value::Value};
+use crate::{objects::LoxString, value::Value, op::OpCode};
+use std::rc::Rc;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Block {
-    pub code: Vec<u8>,
+    pub code: Vec<OpCode>,
     pub constants: Vec<Value>,
     pub lines: Vec<u16>,
 }
@@ -15,9 +17,10 @@ impl Block {
         }
     }
 
-    pub fn write(&mut self, byte: u8, line: u16) {
+    pub fn write(&mut self, byte: OpCode, line: u16) -> usize{
         self.code.push(byte);
         self.lines.push(line);
+        self.code.len() - 1
     }
 
     pub fn add_constant(&mut self, value: Value) -> usize {
@@ -29,9 +32,9 @@ impl Block {
         &self.constants[index as usize]
     }
 
-    pub fn read_string(&self, index: u8) -> &LoxString {
+    pub fn read_string(&self, index: u8) -> Rc<LoxString> {
         if let Value::String(s) = self.read_constant(index) {
-            s
+            s.clone()
         } else {
             panic!("Not a string");
         }

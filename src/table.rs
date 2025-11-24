@@ -2,9 +2,10 @@ use std::alloc::{alloc, dealloc, Layout};
 use crate::value::Value;
 use crate::objects::LoxString;
 use std::ptr::{null_mut, read, write};
+use std::rc::Rc;
 
 pub struct Entry {
-    key: Option<LoxString>,
+    key: Option<Rc<LoxString>>,
     value: Value,
 }
 
@@ -26,7 +27,7 @@ impl Table {
         }
     }
 
-    pub fn get(&self, key: &LoxString) -> Option<Value> {
+    pub fn get(&self, key: Rc<LoxString>) -> Option<Value> {
         if self.count == 0 {
             return None;
         }
@@ -41,28 +42,28 @@ impl Table {
         }
     }
 
-    pub fn set(&mut self, key: LoxString, value: Value) -> bool {
+    pub fn set(&mut self, key: Rc<LoxString>, value: Value) -> bool {
         unsafe {
             if self.count + 1 > (self.capacity as f32 * Self::MAX_LOAD) as usize {
                 let new_capacity = if self.capacity == 0 { 8 } else { self.capacity * 2 };
                 self.adjust_capacity(new_capacity);
             }
 
-            let entry = Self::find_entry(self.entries, &key, self.capacity);
+            let entry = Self::find_entry(self.entries, key.clone(), self.capacity);
             let is_new = (*entry).key.is_none();
 
             if is_new && (*entry).value == Value::Nil{
                 self.count += 1;
             }
 
-            (*entry).key = Some(key);
+            (*entry).key = Some(key.clone());
             (*entry).value = value;
 
             is_new
         }
     }
 
-    pub fn delete(&mut self, key: &LoxString) -> bool {
+    pub fn delete(&mut self, key: Rc<LoxString>) -> bool {
         if self.count == 0 {
             return false;
         }
@@ -120,7 +121,7 @@ impl Table {
         }
     }
 
-    unsafe fn find_entry(entries: *mut Entry, key: &LoxString, capacity: usize) -> *mut Entry {
+    unsafe fn find_entry(entries: *mut Entry, key: Rc<LoxString>, capacity: usize) -> *mut Entry {
         debug_assert!(capacity.is_power_of_two() && capacity > 0);
 
         let mut index = key.hash & (capacity - 1);
@@ -130,7 +131,7 @@ impl Table {
 
             match (*entry).key {
                 Some(ref k) => {
-                    if *k == *key {
+                    if **k == *key {
                         return entry;
                     }
                 },
@@ -160,7 +161,7 @@ impl Table {
 
             match (*entry).key {
                 Some(ref k) => {
-                    let dest = Self::find_entry(entries, k, new_capacity);
+                    let dest = Self::find_entry(entries, k.clone(), new_capacity);
                     (*dest).key = (*entry).key.take();
                     (*dest).value = read(&(*entry).value);
 
@@ -259,10 +260,10 @@ mod tests {
         let mut table = Table::new();
         table.set(LoxString::new("a"), Value::Bool(true));
         
-        assert_eq!(table.get(&LoxString::new("a")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("a")), Some(Value::Bool(true)));
 
         table.set(LoxString::new("a"), Value::Number(1.0));
-        assert_eq!(table.get(&LoxString::new("a")), Some(Value::Number(1.0)));
+        assert_eq!(table.get(LoxString::new("a")), Some(Value::Number(1.0)));
     }
 
     #[test]
@@ -271,9 +272,9 @@ mod tests {
         table.set(LoxString::new("a"), Value::Bool(true));
         table.set(LoxString::new("b"), Value::Number(23.0));
 
-        assert_eq!(table.get(&LoxString::new("a")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("b")), Some(Value::Number(23.0)));
-        assert_eq!(table.get(&LoxString::new("c")), None);
+        assert_eq!(table.get(LoxString::new("a")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("b")), Some(Value::Number(23.0)));
+        assert_eq!(table.get(LoxString::new("c")), None);
     }
 
     #[test]
@@ -315,20 +316,20 @@ mod tests {
         table.set(LoxString::new("b"), Value::Bool(true));
         table.set(LoxString::new("c"), Value::Bool(true));
 
-        assert_eq!(table.get(&LoxString::new("a")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("a")), Some(Value::Bool(true)));
 
-        table.delete(&LoxString::new("a"));
-        assert_eq!(table.get(&LoxString::new("a")), None);
+        table.delete(LoxString::new("a"));
+        assert_eq!(table.get(LoxString::new("a")), None);
 
-        assert_eq!(table.get(&LoxString::new("b")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("b")), Some(Value::Bool(true)));
         
-        table.delete(&LoxString::new("b"));
-        assert_eq!(table.get(&LoxString::new("b")), None);
+        table.delete(LoxString::new("b"));
+        assert_eq!(table.get(LoxString::new("b")), None);
 
-        assert_eq!(table.get(&LoxString::new("c")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("c")), Some(Value::Bool(true)));
         
-        table.delete(&LoxString::new("c"));
-        assert_eq!(table.get(&LoxString::new("c")), None);
+        table.delete(LoxString::new("c"));
+        assert_eq!(table.get(LoxString::new("c")), None);
     }
 
     #[test]
@@ -346,11 +347,11 @@ mod tests {
 
         table.add_table(&table2);
 
-        assert_eq!(table.get(&LoxString::new("a")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("b")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("c")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("d")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("e")), Some(Value::Bool(true)));
-        assert_eq!(table.get(&LoxString::new("f")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("a")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("b")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("c")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("d")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("e")), Some(Value::Bool(true)));
+        assert_eq!(table.get(LoxString::new("f")), Some(Value::Bool(true)));
     }
 }

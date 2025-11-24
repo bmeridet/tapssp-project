@@ -1,13 +1,15 @@
-use std::{fmt, ops::Deref};
+use std::{fmt};
 use std::rc::Rc;
 use std::fmt::Display;
-use crate::objects::{LoxString};
+use crate::objects::{LoxString, Function, NativeFunction};
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     Number(f64),
     Bool(bool),
-    String(LoxString),
+    String(Rc<LoxString>),
+    Function(Rc<Function>),
+    NativeFunction(NativeFunction),
     Nil,
 }
 
@@ -17,6 +19,8 @@ impl fmt::Debug for Value {
             Value::Number(n) => write!(f, "{:?}", n),
             Value::Bool(b) => write!(f, "{:?}", b),
             Value::String(s) => write!(f, "{:?}", s),
+            Value::Function(func) => write!(f, "{:?}", func),
+            Value::NativeFunction(func) => write!(f, "{:?}", func),
             Value::Nil => write!(f, "nil"),
         }
     }
@@ -28,6 +32,8 @@ impl Display for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::Bool(b) => write!(f, "{}", b),
             Value::String(s) => write!(f, "{}", s),
+            Value::Function(func) => write!(f, "<fn {}>", func.name),
+            Value::NativeFunction(_) => write!(f, "<native fn>"),
             Value::Nil => write!(f, "nil"),
         }
     }

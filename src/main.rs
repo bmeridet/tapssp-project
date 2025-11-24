@@ -1,5 +1,4 @@
 mod op;
-mod debug;
 mod value;
 mod block;
 mod vm;
