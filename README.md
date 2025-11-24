@@ -30,6 +30,7 @@ pub enum Value {
     NativeFunction(NativeFunction),
     Nil,
 }
+```
 
 - Stored on the VM stack and in constants in `Block`.  
 - Includes numbers, booleans, strings, functions, and nil.  
@@ -121,6 +122,7 @@ impl Block {
         }
     }
 }
+```
 
 - Holds bytecode instructions, constants, and source line numbers.  
 - `write` appends an instruction and tracks its line number.  
@@ -197,5 +199,6 @@ Compile a script and execute:
 ```rust
 let source = "var x = 10; print x;";
 vm.interpret(source);
+```
 
 - 'interpret' initiates the pipeline of scanning, parsing / compiling, and then executing the provided source code.
