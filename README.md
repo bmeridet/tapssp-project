@@ -202,3 +202,14 @@ vm.interpret(source);
 ```
 
 - 'interpret' initiates the pipeline of scanning, parsing / compiling, and then executing the provided source code.
+
+## Challenges and Learnings
+
+In this project, the source book, Crafting Interpreters, implements the VM in C.  The biggest challenge in implementing the VM in Rust was properly handling the lifetime and borrows of the references / pointers passed throughout the VM.  Other than that, Rust made every other aspect easier.
+
+- Rust has much better error handling
+- Organizing a Rust application is easy with modules.  The different functionalities were simple to contain and are very clear in the exposed API.
+- The functional aspects of Rust are so useful.  Using algerbraic data types via enum structs made some aspects of the VM much more straight forward than the equivalent C code.
+- Testing and running in debug / production are so much easier in Rust as well.  After working with Cargo and some of the other Rust development tools, it's hard to think about using C / C++
+
+Overall, I love Rust as a language and tool to build projects.  I think programming in Rust made me a better programmer and it will make anyone that uses it a better programmer as well.  The language forces you to understand your application inside and out, and that is something that will translate to any tool being used to build software.
